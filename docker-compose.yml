@@ -1,0 +1,99 @@
+version: '3'
+
+services:
+  scanner:
+    image: sbs20/scanservjs
+    container_name: sane-scanner-service
+    restart: unless-stopped
+    # Forwards the installation of the host scanners to the container, check the content of /etc/sane.d/saned.conf
+    # It's important to add the docker networks
+    # 192.168.1.0/24
+    # 172.17.0.0/16
+    # 172.16.0.0/12
+    environment:
+      - SANED_NET_HOSTS=192.168.1.64 # This is the real ip of the host containing the scanner
+    ports:
+      - "8080:8080"
+    devices:
+      - "/dev/bus/usb/001/002:/dev/bus/usb/001/002"
+    volumes:
+      # - /var/run/dbus:/var/run/dbus
+      # - /local/path/cfg:/app/config
+      - /home/smb-user/Pictures/Scan:/app/data/output
+    # privileged: true
+
+  samba:
+    image: servercontainers/samba
+    container_name: samba-service
+    restart: unless-stopped
+    network_mode: host # !important to help Windows discover the sambas
+    # uncomment to solve bug: https://github.com/ServerContainers/samba/issues/50 - wsdd2 only - not needed for samba
+    cap_add:
+      - CAP_NET_ADMIN
+    environment:
+      MODEL: 'TimeCapsule'
+      AVAHI_NAME: StorageServer
+      SAMBA_CONF_LOG_LEVEL: 3
+      # uncomment to disable optional services
+      #WSDD2_DISABLE: 1
+      #AVAHI_DISABLE: 1
+      GROUP_admin: 1500
+      ACCOUNT_miguel: migue300995
+      UID_miguel: 1000
+      GROUPS_miguel: admin
+      # Examples using environment variables instead of volume config
+      # SAMBA_VOLUME_CONFIG_shared_home: "[Home]; path=/shares/homes/%U; valid users = alice, bob, foo; guest ok = no; read only = no; browseable = yes"
+      # SAMBA_VOLUME_CONFIG_aliceonly: "[Alice Share]; path=/shares/alice; valid users = alice; guest ok = no; read only = no; browseable = yes"
+      # SAMBA_VOLUME_CONFIG_alicehidden: "[Alice Hidden Share]; path=/shares/alice-hidden; valid users = alice; guest ok = no; read only = no; browseable = no"      
+      # SAMBA_VOLUME_CONFIG_public: "[Public]; path=/shares/public; valid users = alice, bob, foo; guest ok = no; read only = no; browseable = yes; force group = family"
+      # SAMBA_VOLUME_CONFIG_public_ro: "[Public ReadOnly]; path=/shares/public; guest ok = yes; read only = yes; browseable = yes; force group = family"
+      # SAMBA_VOLUME_CONFIG_timemachine: "[TimeMachine]; path=/shares/timemachine/%U; valid users = alice, bob, foo; guest ok = no; read only = no; browseable = yes; fruit:time machine = yes; fruit:time machine max size = 500G"
+      # SAMBA_VOLUME_CONFIG_miguel: "[MiguelShare]; path=/shares/miguel; writeable = yes; valid users = miguel; guest ok = no; read only = no; browseable = yes; read raw = Yes; write raw = Yes; use sendfile = true"
+    volumes:
+      # - /etc/avahi/services/:/external/avahi
+      # avoid loops when mounting folders to /shares (I'd recommend explicit mapping for each share)
+      - /home/smb-user:/shares/miguel
+      - ./Configurations/Current/smb.conf:/etc/samba/smb.conf
+      # - ./shares/alice-hidden:/shares/alice-hidden
+      # - ./shares/bob:/shares/bob
+
+  dlna:
+    image: geekduck/minidlna
+    container_name: dlna-service
+    restart: unless-stopped
+    network_mode: host # !important to help Windows discover the sambas
+    # ports:
+      # - "8200:8200"
+    volumes:
+      # - <PATH_TO_MUSIC_DIR>:/opt/Music
+      - /home/smb-user/Movies:/opt/Videos/Movies
+      - /home/smb-user/Series:/opt/Videos/Series
+      - /home/smb-user/Pictures:/opt/Pictures
+      - ./Configurations/Current/minidlna.conf:/etc/minidlna.conf
+    restart: unless-stopped
+
+  nginx:
+    image: nginx
+    container_name: nginx-service
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - NGINX_HOST=lopezarcos.io
+      - NGINX_PORT=80
+    volumes:
+      - ./Configurations/Current/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer:latest
+    container_name: portainer-service
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./PortainerData:/data # Keep portainer config such as the user and host configured
+    ports:
+      - 9000:9000
