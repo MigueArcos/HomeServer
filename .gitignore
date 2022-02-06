@@ -1,2 +1,3 @@
-PortainerData/
-Tests/
+.ContainersData/
+.Tests/
+.env

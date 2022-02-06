@@ -5,21 +5,21 @@ services:
     image: sbs20/scanservjs
     container_name: sane-scanner-service
     restart: unless-stopped
-    # Forwards the installation of the host scanners to the container, check the content of /etc/sane.d/saned.conf
+    # Forwards the installation of the host scanners to the container, check the content of /etc/sane.d/saned.conf in host machine
     # It's important to add the docker networks
     # 192.168.1.0/24
     # 172.17.0.0/16
     # 172.16.0.0/12
     environment:
-      - SANED_NET_HOSTS=192.168.1.64 # This is the real ip of the host containing the scanner
+      - SANED_NET_HOSTS=${HOST_IP:-192.168.1.64} # This is the real ip of the host containing the scanner
     ports:
       - "8080:8080"
     devices:
-      - "/dev/bus/usb/001/002:/dev/bus/usb/001/002"
+      - /dev/bus/usb/001/002:/dev/bus/usb/001/002
     volumes:
       # - /var/run/dbus:/var/run/dbus
       # - /local/path/cfg:/app/config
-      - /home/smb-user/Pictures/Scan:/app/data/output
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures/Scan:/app/data/output
     # privileged: true
 
   samba:
@@ -31,16 +31,23 @@ services:
     cap_add:
       - CAP_NET_ADMIN
     environment:
-      MODEL: 'TimeCapsule'
+      MODEL: TimeCapsule
       AVAHI_NAME: StorageServer
       SAMBA_CONF_LOG_LEVEL: 3
       # uncomment to disable optional services
       #WSDD2_DISABLE: 1
       #AVAHI_DISABLE: 1
       GROUP_admin: 1500
+      GROUP_family: 1501
+      
       ACCOUNT_miguel: migue300995
       UID_miguel: 1000
       GROUPS_miguel: admin
+ 
+      ACCOUNT_joseluis: foco030363
+      UID_joseluis: 1001
+      GROUPS_joseluis: family
+      
       # Examples using environment variables instead of volume config
       # SAMBA_VOLUME_CONFIG_shared_home: "[Home]; path=/shares/homes/%U; valid users = alice, bob, foo; guest ok = no; read only = no; browseable = yes"
       # SAMBA_VOLUME_CONFIG_aliceonly: "[Alice Share]; path=/shares/alice; valid users = alice; guest ok = no; read only = no; browseable = yes"
@@ -52,8 +59,9 @@ services:
     volumes:
       # - /etc/avahi/services/:/external/avahi
       # avoid loops when mounting folders to /shares (I'd recommend explicit mapping for each share)
-      - /home/smb-user:/shares/miguel
-      - ./Configurations/Current/smb.conf:/etc/samba/smb.conf
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}:/shares/miguel
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Users/Father:/shares/joseluis
+      - ./Configurations/Current/smb.conf:/etc/samba/smb.conf:ro
       # - ./shares/alice-hidden:/shares/alice-hidden
       # - ./shares/bob:/shares/bob
 
@@ -61,15 +69,31 @@ services:
     image: geekduck/minidlna
     container_name: dlna-service
     restart: unless-stopped
-    network_mode: host # !important to help Windows discover the sambas
+    network_mode: host # !important to help Windows discover dlna
     # ports:
-      # - "8200:8200"
+    # - "1900:1900/udp"
+    # - "8200:8200/tcp"
     volumes:
       # - <PATH_TO_MUSIC_DIR>:/opt/Music
-      - /home/smb-user/Movies:/opt/Videos/Movies
-      - /home/smb-user/Series:/opt/Videos/Series
-      - /home/smb-user/Pictures:/opt/Pictures
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Movies:/opt/Videos/Movies
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Series:/opt/Videos/Series
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures:/opt/Pictures
       - ./Configurations/Current/minidlna.conf:/etc/minidlna.conf
+    restart: unless-stopped
+  
+  # if I delete a file inside a container, delete that container and relaunch the container of the image the change is permanent (I don't know why) even if i change the container name (with ydkn/cups) (forget this, it was because the volume of the container saved all /etc/cups directory)
+  cups:
+    image: miguel/cups
+    container_name: cups-service
+    restart: unless-stopped
+    ports:
+     - "631:631"
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      # Check the order of the volumes
+      - ./.ContainersData/Cups:/etc/cups
+      - ./Configurations/Current/cupsd.conf:/etc/cups/cupsd.conf 
+    privileged: true
     restart: unless-stopped
 
   nginx:
@@ -86,7 +110,7 @@ services:
     restart: unless-stopped
 
   portainer:
-    image: portainer/portainer:latest
+    image: portainer/portainer-ce:latest
     container_name: portainer-service
     restart: unless-stopped
     security_opt:
@@ -94,6 +118,20 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./PortainerData:/data # Keep portainer config such as the user and host configured
+      - ./.ContainersData/Portainer:/data # Keep portainer config such as the user and host configured
     ports:
       - 9000:9000
+  
+  pyload-ng:
+    image: linuxserver/pyload-ng
+    container_name: pyload-service
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Mexico_City
+    volumes:
+      - ./.ContainersData/Pyload:/config
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pyload/Downloads:/downloads
+    ports:
+      - 3000:8000
