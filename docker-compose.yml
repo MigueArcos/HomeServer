@@ -15,7 +15,7 @@ services:
     ports:
       - "8080:8080"
     devices:
-      - /dev/bus/usb/001/002:/dev/bus/usb/001/002
+      - /dev/brother-dcp-t310
     volumes:
       # - /var/run/dbus:/var/run/dbus
       # - /local/path/cfg:/app/config
@@ -61,7 +61,7 @@ services:
       # avoid loops when mounting folders to /shares (I'd recommend explicit mapping for each share)
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}:/shares/miguel
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Users/Father:/shares/joseluis
-      - ./Configurations/Current/smb.conf:/etc/samba/smb.conf:ro
+      - ./Configurations/smb.conf:/etc/samba/smb.conf:ro
       # - ./shares/alice-hidden:/shares/alice-hidden
       # - ./shares/bob:/shares/bob
 
@@ -78,7 +78,7 @@ services:
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Movies:/opt/Videos/Movies
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Series:/opt/Videos/Series
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures:/opt/Pictures
-      - ./Configurations/Current/minidlna.conf:/etc/minidlna.conf
+      - ./Configurations/minidlna.conf:/etc/minidlna.conf
     restart: unless-stopped
   
   # if I delete a file inside a container, delete that container and relaunch the container of the image the change is permanent (I don't know why) even if i change the container name (with ydkn/cups) (forget this, it was because the volume of the container saved all /etc/cups directory)
@@ -88,12 +88,18 @@ services:
     restart: unless-stopped
     ports:
      - "631:631"
+    devices:
+      - /dev/brother-dcp-t310
+      - /dev/brother-hl-1110
+    device_cgroup_rules:
+    - 'c 189:* rmw' # 189 is the major number for usb devices (Printers)
     volumes:
+      - /dev/bus/usb:/dev/bus/usb
       - /var/run/dbus:/var/run/dbus
       # Check the order of the volumes
       - ./.ContainersData/Cups:/etc/cups
-      - ./Configurations/Current/cupsd.conf:/etc/cups/cupsd.conf 
-    privileged: true
+      - ./Configurations/cupsd.conf:/etc/cups/cupsd.conf 
+    # privileged: true
     restart: unless-stopped
 
   nginx:
@@ -106,7 +112,7 @@ services:
       - NGINX_HOST=lopezarcos.io
       - NGINX_PORT=80
     volumes:
-      - ./Configurations/Current/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Configurations/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
 
   portainer:
