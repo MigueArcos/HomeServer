@@ -14,16 +14,16 @@ if [ "$1" == "added" ]
         echo "ComposeResult = $ComposeResult" >> /tmp/docker_usb.log 
 fi
 
-if [ ! -z "$(docker ps -qf name=cups-service)" ] # cups-service is the name of the container I want to add the devices
+if [ ! -z "$(docker ps -qf name=cups_service)" ] # cups_service is the name of the container I want to add the devices
         then
         if [ "$1" == "added" ]
                 then
-                # docker exec cups-service mkdir -p $2
-                docker exec cups-service mknod $2 c $3 $4
-                docker exec cups-service chmod -R 777 $2
-                echo "Adding $2 to docker (cups-service)" >> /tmp/docker_usb.log
+                # docker exec cups_service mkdir -p $2
+                docker exec cups_service mknod $2 c $3 $4
+                docker exec cups_service chmod -R 777 $2
+                echo "Adding $2 to docker (cups_service)" >> /tmp/docker_usb.log
         else
-                docker exec cups-service rm $2
-                echo "Removing $2 from docker (cups-service)" >> /tmp/docker_usb.log
+                docker exec cups_service rm $2
+                echo "Removing $2 from docker (cups_service)" >> /tmp/docker_usb.log
         fi
 fi

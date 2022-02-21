@@ -50,8 +50,8 @@ crw-rw-rw- 1 root lp 189, 1 feb 19 08:08 /dev/bus/usb/001/002 # In this case 189
 Now the idea is to add a script which would be run every time your USB device is plugged in or plugged out. Some explanation about custom rules [here](https://linuxconfig.org/tutorial-on-how-to-write-basic-udev-rules-in-linux) and [here](https://stackoverflow.com/questions/13699241/passing-arguments-to-shell-script-from-udev-rules-file/14982520#14982520). On ubuntu, you should create file ```/etc/udev/rules.d/99-docker-usb.rules``` as superuser (sudo).
 The content of the Udev rule is something like this:
 ```bash
-ACTION=="add", SUBSYSTEM=="tty", RUN+="/usr/local/bin/docker_usb.sh 'added' '%E{DEVNAME}' '%M' '%m'"
-ACTION=="remove", SUBSYSTEM=="tty", RUN+="/usr/local/bin/docker_usb.sh 'removed' '%E{DEVNAME}' '%M' '%m'"
+ACTION=="add", SUBSYSTEM=="usb", RUN+="/usr/local/bin/docker_usb.sh 'added' '%E{DEVNAME}' '%M' '%m'"
+ACTION=="remove", SUBSYSTEM=="usb", RUN+="/usr/local/bin/docker_usb.sh 'removed' '%E{DEVNAME}' '%M' '%m'"
 ```
 This file adds new entry to your rules, basically saying: Every time usb device is plugged in (-add) or plugged out (-remove) run the provided script and pass some parameters. If you want to be more specific, you can use ```udevadm info  --name=<device name>``` to find other parameters by which you can filter devices or use a specific Udev rule for each device like described above. You can test the rules as suggested [here](https://superuser.com/questions/677106/how-to-check-if-a-udev-rule-fired/1530226#1530226). To apply those rules:
 ```bash
