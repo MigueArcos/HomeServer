@@ -2,8 +2,8 @@ version: '3'
 
 services:
   scanner:
-    image: sbs20/scanservjs
-    container_name: sane-scanner-service
+    image: sbs20/scanservjs:latest
+    container_name: sane_scanner_service
     restart: unless-stopped
     # Forwards the installation of the host scanners to the container, check the content of /etc/sane.d/saned.conf in host machine
     # It's important to add the docker networks
@@ -21,10 +21,12 @@ services:
       # - /local/path/cfg:/app/config
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures/Scan:/app/data/output
     # privileged: true
+    networks: 
+      - internal
 
   samba:
-    image: servercontainers/samba
-    container_name: samba-service
+    image: servercontainers/samba:latest
+    container_name: samba_service
     restart: unless-stopped
     network_mode: host # !important to help Windows discover the sambas
     # uncomment to solve bug: https://github.com/ServerContainers/samba/issues/50 - wsdd2 only - not needed for samba
@@ -66,8 +68,8 @@ services:
       # - ./shares/bob:/shares/bob
 
   dlna:
-    image: geekduck/minidlna
-    container_name: dlna-service
+    image: geekduck/minidlna:latest
+    container_name: dlna_service
     restart: unless-stopped
     network_mode: host # !important to help Windows discover dlna
     # ports:
@@ -83,8 +85,11 @@ services:
   
   # if I delete a file inside a container, delete that container and relaunch the container of the image the change is permanent (I don't know why) even if i change the container name (with ydkn/cups) (forget this, it was because the volume of the container saved all /etc/cups directory)
   cups:
-    image: miguel/cups
-    container_name: cups-service
+    image: miguel/cups:latest
+    build: 
+      context: ./CustomServices/Cups
+      dockerfile: Dockerfile
+    container_name: cups_service
     restart: unless-stopped
     ports:
      - "631:631"
@@ -101,10 +106,12 @@ services:
       - ./Configurations/cupsd.conf:/etc/cups/cupsd.conf 
     # privileged: true
     restart: unless-stopped
+    networks: 
+      - internal
 
   nginx:
-    image: nginx
-    container_name: nginx-service
+    image: nginx:latest
+    container_name: nginx_service
     restart: unless-stopped
     ports:
       - "80:80"
@@ -114,10 +121,12 @@ services:
     volumes:
       - ./Configurations/nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
+    networks: 
+      - internal
 
   portainer:
     image: portainer/portainer-ce:latest
-    container_name: portainer-service
+    container_name: portainer_service
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -127,10 +136,12 @@ services:
       - ./.ContainersData/Portainer:/data # Keep portainer config such as the user and host configured
     ports:
       - 9000:9000
+    networks: 
+      - internal
   
   pyload-ng:
-    image: linuxserver/pyload-ng
-    container_name: pyload-service
+    image: linuxserver/pyload-ng:latest
+    container_name: pyload_service
     restart: unless-stopped
     environment:
       - PUID=1000
@@ -141,3 +152,10 @@ services:
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pyload/Downloads:/downloads
     ports:
       - 3000:8000
+    networks: 
+      - internal
+
+networks:
+  internal:
+    name: home_server_internal_network
+    driver: bridge
