@@ -72,3 +72,41 @@ References:
 > https://stackoverflow.com/questions/24225647/docker-a-way-to-give-access-to-a-host-usb-or-serial-device#answer-66427245
 > 
 > https://docs.docker.com/engine/reference/commandline/create/#dealing-with-dynamically-created-devices---device-cgroup-rule
+
+# Install Canon Scanner as a container
+The most important part here is to make the scanner work locally on the Host machine using the **pixma** backend.
+\
+The backends are a series of libraries used by sane to work with a wide range of scanners from multiple brands, apparently ***escl*** works pretty well with my **Pixma** (G-2060) scanner but I was unable to share the scanner on the network using this backend.
+So, in order to make this scanner work on the container the first is going to be update the Host Sane binaries.
+To do so, run the following commands:
+```bash
+sudo add-apt-repository ppa:sane-project/sane-git
+sudo apt-get update
+sudo apt install libsane libsane1 libsane-common sane-utils
+```
+Now edit **/etc/sane.d/dll.conf** to look like this in the host machine.
+```bash
+# This configuration allows us to use the pixma backend and disable all the other unnecesary backends (this way the scanner detection is faster)
+net
+# escl
+pixma
+# delete or comment all the other backends
+```
+And edit **/etc/sane.d/dll.conf** to look like this in the host machine.
+```bash
+# This configuration is to share the scanner in the host network and the internal docker networks
+192.168.1.0/24
+172.17.0.0/16
+172.16.0.0/12
+```
+Finally, in the host machine run the following commands (Removing **ippusbxd** is very important otherwise the **pixma** backend does not work):
+```bash
+sudo apt remove ippusbxd
+sudo usermod -a -G dialout $USER
+sudo shutdown -r now
+```
+And this way when running the container we are going to connect to the scanner attached on the host machine, to do so, add the following environment variable when running the **sbs20/scanservjs:latest** container: **SANED_NET_HOSTS=${HOST_IP:-192.168.1.64}**.
+\
+This way the **/etc/sane.d/net.conf** in the container has an entry with the ip address of the host machine in order to reach the network scanner.
+Since we are not going to use more backends in the container we can delete all the other backends except the **net** backend.
+In this repo I included this configuration under **./Configurations/sane_dll.conf**, we can simply use it by attching this volume to the container to avoid manually editing files: **./Configurations/sane_dll.conf:/etc/sane.d/dll.conf**

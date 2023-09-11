@@ -9,18 +9,28 @@ RUN apt-get update \
   usbutils \
   cups \
   cups-bsd \
-  cups-filters \
+  cups-filters
   # foomatic-db-compressed-ppds \
   # printer-driver-all \
   # openprinting-ppds \
   # printer-driver-cups-pdf \
-  && curl https://download.brother.com/welcome/dlf100419/hl1110lpr-3.0.1-1.i386.deb --output lpr-driver-hl-1110.deb \ 
+
+# Download drivers
+RUN curl https://download.brother.com/welcome/dlf100419/hl1110lpr-3.0.1-1.i386.deb --output lpr-driver-hl-1110.deb \ 
   && curl https://download.brother.com/welcome/dlf100421/hl1110cupswrapper-3.0.1-1.i386.deb --output cups-driver-hl-1110.deb \
   && curl https://download.brother.com/welcome/dlf103618/dcpt310pdrv-1.0.1-0.i386.deb --output driver-dcp-t310.deb \
+  && curl https://gdlp01.c-wss.com/gds/9/0100010919/01/cnijfilter2-6.10-1-deb.tar.gz --output driver-pixma-g2060-deb.tar.gz
+
+# Install drivers
+RUN tar -xvzf driver-pixma-g2060-deb.tar.gz \
+  # This doesn't seem to be necessary && chmod +x cnijfilter2-6.10-1-deb/install.sh \
+  && dpkg -iG ./cnijfilter2-6.10-1-deb/packages/cnijfilter2_6.10-1_i386.deb \
   && dpkg -i --force-all lpr-driver-hl-1110.deb \
   && dpkg -i --force-all cups-driver-hl-1110.deb \
-  && dpkg -i --force-all driver-dcp-t310.deb \
-  && apt-get remove -y --purge printer-driver-gutenprint libgutenprint9 libgutenprint-common \
+  && dpkg -i --force-all driver-dcp-t310.deb
+
+# Clean packages
+RUN apt-get remove -y --purge printer-driver-gutenprint libgutenprint9 libgutenprint-common \
   && apt-get clean \
   && apt-get autoremove \
   && rm -rf /var/lib/apt/lists/*

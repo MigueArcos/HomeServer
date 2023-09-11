@@ -5,20 +5,18 @@ services:
     image: sbs20/scanservjs:latest
     container_name: sane_scanner_service
     restart: unless-stopped
-    # Forwards the installation of the host scanners to the container, check the content of /etc/sane.d/saned.conf in host machine
-    # It's important to add the docker networks
-    # 192.168.1.0/24
-    # 172.17.0.0/16
-    # 172.16.0.0/12
     environment:
       - SANED_NET_HOSTS=${HOST_IP:-192.168.1.64} # This is the real ip of the host containing the scanner
     ports:
       - "8080:8080"
     devices:
-      - /dev/brother-dcp-t310
+      - /dev/canon-pixma-g2060
     volumes:
+      # - /dev:/dev:ro
+      # - /run/udev:/run/udev:ro
       # - /var/run/dbus:/var/run/dbus
       # - /local/path/cfg:/app/config
+      - ./Configurations/sane_dll.conf:/etc/sane.d/dll.conf
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures/Scan:/app/data/output
     # privileged: true
     networks: 
@@ -94,17 +92,17 @@ services:
     ports:
      - "631:631"
     devices:
-      - /dev/brother-dcp-t310
-      - /dev/brother-hl-1110
+      - /dev/canon-pixma-g2060
     device_cgroup_rules:
     - 'c 189:* rmw' # 189 is the major number for usb devices (Printers)
     volumes:
-      - /dev/bus/usb:/dev/bus/usb
+      - /run/udev:/run/udev:ro
       - /var/run/dbus:/var/run/dbus
+      - /dev:/dev
       # Check the order of the volumes
       - ./.ContainersData/Cups:/etc/cups
       - ./Configurations/cupsd.conf:/etc/cups/cupsd.conf 
-    # privileged: true
+    privileged: true
     restart: unless-stopped
     networks: 
       - internal
