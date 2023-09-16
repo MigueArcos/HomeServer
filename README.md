@@ -92,7 +92,7 @@ net
 pixma
 # delete or comment all the other backends
 ```
-And edit **/etc/sane.d/dll.conf** to look like this in the host machine.
+And edit **/etc/sane.d/saned.conf** to look like this in the host machine.
 ```bash
 # This configuration is to share the scanner in the host network and the internal docker networks
 192.168.1.0/24
