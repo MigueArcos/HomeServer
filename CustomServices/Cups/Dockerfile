@@ -9,7 +9,18 @@ RUN apt-get update \
   usbutils \
   cups \
   cups-bsd \
-  cups-filters
+  cups-filters \
+  avahi-daemon \
+  inotify-tools \
+	avahi-daemon \
+	avahi-discover \
+	python3 \
+	python3-dev \
+	python3-pip \
+	python3-cups \
+	wget \
+	rsync \
+  avahi-utils
   # foomatic-db-compressed-ppds \
   # printer-driver-all \
   # openprinting-ppds \
@@ -46,7 +57,21 @@ RUN useradd \
 && sed -i '/%sudo[[:space:]]/ s/ALL[[:space:]]*$/NOPASSWD:ALL/' /etc/sudoers
 
 # Copy the default configuration file
-COPY --chown=root:lp default.cupsd.conf /etc/cups/cupsd.conf
+COPY run_cups.sh run_cups.sh
+COPY airprint_generate.py airprint_generate.py
+COPY printer_update.sh printer_update.sh
+
+# We want a mount for these
+VOLUME /config
+VOLUME /services
+
+RUN chmod +x run_cups.sh
+RUN chmod +x printer_update.sh
+RUN chmod +x airprint_generate.py
+
+COPY --chown=root:lp cupsd.conf /etc/cups/cupsd.conf
+
+EXPOSE 631 5353/udp
 
 # Default shell
-CMD ["/usr/sbin/cupsd", "-f"]
+CMD ["/run_cups.sh"]

@@ -1,26 +1,59 @@
-version: '3'
-
 services:
+  dns:
+    image: strm/dnsmasq:latest
+    container_name: dns_service
+    restart: unless-stopped
+    ports:
+      - "53:53/udp"
+      - "53:53"
+    cap_add:
+      - CAP_NET_ADMIN
+    volumes:
+      - ./Configurations/dnsmasq.conf:/etc/dnsmasq.conf:ro
+
   scanner:
     image: sbs20/scanservjs:latest
     container_name: sane_scanner_service
     restart: unless-stopped
+    # command: ["sleep","infinity"] # run ubuntu container withoout docker run
     environment:
       - SANED_NET_HOSTS=${HOST_IP:-192.168.1.64} # This is the real ip of the host containing the scanner
     ports:
       - "8080:8080"
     devices:
       - /dev/canon-pixma-g2060
+    device_cgroup_rules:
+    - 'c 189:* rmw' # 189 is the major number for usb devices (Printers)
     volumes:
-      # - /dev:/dev:ro
-      # - /run/udev:/run/udev:ro
+      - /dev:/dev:ro
+      - /run/udev:/run/udev:ro
       # - /var/run/dbus:/var/run/dbus
       # - /local/path/cfg:/app/config
       - ./Configurations/sane_dll.conf:/etc/sane.d/dll.conf
-      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures/Scan:/app/data/output
+      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures/Scan:/usr/lib/scanservjs/data/output
+    networks:
+      - home_server
+
+  cups:
+    image: miguel/cups:latest
+    build:
+      context: ./CustomServices/Cups
+      dockerfile: Dockerfile
+    container_name: cups_service
+    devices:
+      - /dev/canon-pixma-g2060
+    device_cgroup_rules:
+    - 'c 189:* rmw' # 189 is the major number for usb devices (Printers)
+    volumes:
+      - /run/udev:/run/udev:ro
+      - /var/run/dbus:/var/run/dbus
+      - /dev:/dev:ro
+      # Check the order of the volumes
+      - ./.ContainersData/Cups/Services:/services:rw
+      - ./.ContainersData/Cups/Config:/config:rw
     # privileged: true
-    networks: 
-      - internal
+    restart: unless-stopped
+    network_mode: host
 
   samba:
     image: servercontainers/samba:latest
@@ -39,15 +72,15 @@ services:
       #AVAHI_DISABLE: 1
       GROUP_admin: 1500
       GROUP_family: 1501
-      
+
       ACCOUNT_miguel: migue300995
       UID_miguel: 1000
       GROUPS_miguel: admin
- 
+
       ACCOUNT_joseluis: foco030363
       UID_joseluis: 1001
       GROUPS_joseluis: family
-      
+
       # Examples using environment variables instead of volume config
       # SAMBA_VOLUME_CONFIG_shared_home: "[Home]; path=/shares/homes/%U; valid users = alice, bob, foo; guest ok = no; read only = no; browseable = yes"
       # SAMBA_VOLUME_CONFIG_aliceonly: "[Alice Share]; path=/shares/alice; valid users = alice; guest ok = no; read only = no; browseable = yes"
@@ -68,11 +101,7 @@ services:
   dlna:
     image: geekduck/minidlna:latest
     container_name: dlna_service
-    restart: unless-stopped
-    network_mode: host # !important to help Windows discover dlna
-    # ports:
-    # - "1900:1900/udp"
-    # - "8200:8200/tcp"
+    network_mode: host # !important to help Devices discover DLNA
     volumes:
       # - <PATH_TO_MUSIC_DIR>:/opt/Music
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Movies:/opt/Videos/Movies
@@ -80,80 +109,55 @@ services:
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pictures:/opt/Pictures
       - ./Configurations/minidlna.conf:/etc/minidlna.conf
     restart: unless-stopped
-  
-  # if I delete a file inside a container, delete that container and relaunch the container of the image the change is permanent (I don't know why) even if i change the container name (with ydkn/cups) (forget this, it was because the volume of the container saved all /etc/cups directory)
-  cups:
-    image: miguel/cups:latest
-    build: 
-      context: ./CustomServices/Cups
-      dockerfile: Dockerfile
-    container_name: cups_service
-    restart: unless-stopped
-    ports:
-     - "631:631"
-    devices:
-      - /dev/canon-pixma-g2060
-    device_cgroup_rules:
-    - 'c 189:* rmw' # 189 is the major number for usb devices (Printers)
-    volumes:
-      - /run/udev:/run/udev:ro
-      - /var/run/dbus:/var/run/dbus
-      - /dev:/dev
-      # Check the order of the volumes
-      - ./.ContainersData/Cups:/etc/cups
-      - ./Configurations/cupsd.conf:/etc/cups/cupsd.conf 
-    privileged: true
-    restart: unless-stopped
-    networks: 
-      - internal
 
   nginx:
-    image: nginx:latest
-    container_name: nginx_service
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    environment:
-      - NGINX_HOST=lopezarcos.io
-      - NGINX_PORT=80
-    volumes:
-      - ./Configurations/nginx.conf:/etc/nginx/nginx.conf:ro
-    restart: unless-stopped
-    networks: 
-      - internal
+     image: nginx:latest
+     container_name: nginx_service
+     restart: unless-stopped
+     ports:
+       - "80:80"
+     environment:
+       - NGINX_HOST=lopezarcos.io
+       - NGINX_PORT=80
+     volumes:
+       - ./Configurations/nginx.conf:/etc/nginx/nginx.conf:ro
+     networks:
+       - home_server
+     extra_hosts:
+      - host.docker.internal:host-gateway
 
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer_service
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./.ContainersData/Portainer:/data # Keep portainer config such as the user and host configured
-    ports:
-      - 9000:9000
-    networks: 
-      - internal
-  
-  pyload-ng:
-    image: linuxserver/pyload-ng:latest
-    container_name: pyload_service
-    restart: unless-stopped
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/Mexico_City
-    volumes:
-      - ./.ContainersData/Pyload:/config
-      - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pyload/Downloads:/downloads
-    ports:
-      - 3000:8000
-    networks: 
-      - internal
+ # portainer:
+  #   image: portainer/portainer-ce:latest
+  #   container_name: portainer_service
+  #   restart: unless-stopped
+  #   security_opt:
+  #     - no-new-privileges:true
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #     - ./.ContainersData/Portainer:/data # Keep portainer config such as the user and host configured
+  #   ports:
+  #     - 9000:9000
+  #   networks: 
+  #     - home_server
+
+  # pyload-ng:
+  #   image: linuxserver/pyload-ng:latest
+  #   container_name: pyload_service
+  #   restart: unless-stopped
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=America/Mexico_City
+  #   volumes:
+  #     - ./.ContainersData/Pyload:/config
+  #     - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Pyload/Downloads:/downloads
+  #   ports:
+  #     - 3000:8000
+  #   networks: 
+  #     - home_server
 
 networks:
-  internal:
-    name: home_server_internal_network
+  home_server:
+    name: home_server
     driver: bridge

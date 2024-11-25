@@ -10,7 +10,7 @@ fi
 if [ "$1" == "added" ]
         then
         echo "Starting containers" >> /tmp/docker_usb.log
-        ComposeResult=$(/usr/local/bin/docker-compose -f /path/to/compose/docker-compose.yml up -d 2>&1) ## Run docker-compose in case a device is turning on and the containers using that device are dead.
+        ComposeResult=$(/usr/bin/docker compose -f /path/to/compose/docker-compose.yml up -d 2>&1) ## Run docker-compose in case a device is turning on and the containers using that device are dead.
         echo "ComposeResult = $ComposeResult" >> /tmp/docker_usb.log 
 fi
 
@@ -26,4 +26,17 @@ if [ ! -z "$(docker ps -qf name=cups_service)" ] # cups_service is the name of t
                 docker exec cups_service rm $2
                 echo "Removing $2 from docker (cups_service)" >> /tmp/docker_usb.log
         fi
+fi
+
+if [ ! -z "$(docker ps -qf name=sane_scanner_service)" ]
+       then
+       if [ "$1" == "added" ]
+               then
+               docker exec -u 0 sane_scanner_service mknod $2 c $3 $4
+               docker exec -u 0 sane_scanner_service chmod -R 777 $2
+               echo "Adding $2 to docker (sane_scanner_service)" >> /tmp/docker_usb.log
+       else
+               docker exec -u 0 sane_scanner_service rm $2
+               echo "Removing $2 from docker (sane_scanner_service)" >> /tmp/docker_usb.log
+       fi
 fi
