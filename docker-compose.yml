@@ -73,11 +73,11 @@ services:
       GROUP_admin: 1500
       GROUP_family: 1501
 
-      ACCOUNT_miguel: migue300995
+      ACCOUNT_miguel: "miguel:1000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:74715872EC0CCC0EB3655D6CC40C5340:[U          ]:LCT-678D5C9F:"
       UID_miguel: 1000
       GROUPS_miguel: admin
 
-      ACCOUNT_joseluis: foco030363
+      ACCOUNT_joseluis: "joseluis:1000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:6C3A419D050572E3F83F2D53B14FF45D:[U          ]:LCT-678D5D4F:"
       UID_joseluis: 1001
       GROUPS_joseluis: family
 
@@ -94,7 +94,7 @@ services:
       # avoid loops when mounting folders to /shares (I'd recommend explicit mapping for each share)
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}:/shares/miguel
       - ${SHARED_DISK_MOUNT_POINT?You must specify the shared disk path}/Users/Father:/shares/joseluis
-      - ./Configurations/smb.conf:/etc/samba/smb.conf:ro
+      - ./Configurations/smb.conf:/etc/samba/smb.conf:ro # TODO: use ro or rw?
       # - ./shares/alice-hidden:/shares/alice-hidden
       # - ./shares/bob:/shares/bob
 
@@ -126,7 +126,7 @@ services:
      extra_hosts:
       - host.docker.internal:host-gateway
 
- # portainer:
+  # portainer:
   #   image: portainer/portainer-ce:latest
   #   container_name: portainer_service
   #   restart: unless-stopped

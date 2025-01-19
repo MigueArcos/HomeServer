@@ -4,7 +4,7 @@ To run this repo just create a .env file in the root path with the following con
 HOST_IP=192.168.1.64
 SHARED_DISK_MOUNT_POINT=/media/shared-hdd
 ```
-Then after the environment variables are set just run ```docker-compose up -d```.
+Then, after the environment variables are set, just run ```docker-compose up -d```.
 
 # Udev Rules in Docker
 By default, serial devices are mounted so that only root users can access the device. We need to add a Udev rule to make them readable by non-root users. Udev is the device manager for the Linux kernel and handles what happens when something like a serial device is plugged in. For security reasons, most Docker containers execute their processes under a non-root user. This means we need to change some permissions to give that user access to the serial device. We can do this by defining Udev rules.
