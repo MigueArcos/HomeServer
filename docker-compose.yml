@@ -8,8 +8,13 @@ services:
       - "53:53"
     cap_add:
       - CAP_NET_ADMIN
-    volumes:
-      - ./Configurations/dnsmasq.conf:/etc/dnsmasq.conf:ro
+    volumes: # mounting the config file as a temp file to make further changes to it after the container is started
+      - ./Configurations/dnsmasq.conf:/tmp/dns.conf:ro
+    post_start:
+      - command: ["cp", "/tmp/dns.conf", "/etc/dnsmasq.conf"]
+        user: root
+      - command: ["sed", "-i", "s/127.0.0.1/${HOST_IP:-192.168.1.64}/", /etc/dnsmasq.conf]
+        user: root
 
   scanner:
     image: sbs20/scanservjs:latest
@@ -126,20 +131,20 @@ services:
      extra_hosts:
       - host.docker.internal:host-gateway
 
-  # portainer:
-  #   image: portainer/portainer-ce:latest
-  #   container_name: portainer_service
-  #   restart: unless-stopped
-  #   security_opt:
-  #     - no-new-privileges:true
-  #   volumes:
-  #     - /etc/localtime:/etc/localtime:ro
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #     - ./.ContainersData/Portainer:/data # Keep portainer config such as the user and host configured
-  #   ports:
-  #     - 9000:9000
-  #   networks: 
-  #     - home_server
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer_service
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.ContainersData/Portainer:/data # Keep portainer config such as the user and host configured
+    ports:
+      - 9000:9000
+    networks: 
+      - home_server
 
   # pyload-ng:
   #   image: linuxserver/pyload-ng:latest
